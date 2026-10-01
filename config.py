@@ -35,3 +35,6 @@ NOISE_LEVELS = {
 
 WAVELET_THRESHOLD_METHOD = "bayes"   # "bayes" (per-subband) or "universal"
 WAVELET_THRESHOLD_SCALE = 1.0        # multiplier on the threshold (tuning knob)
+
+SHEARLET_THRESHOLD_MODE = "hard"     # "hard" or "soft" (hard is the pyShearLab standard)
+ 
