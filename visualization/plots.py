@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter, NullFormatter
 
 COLORS = {"noisy": "#8c8c8c", "wavelet": "#1f77b4", "shearlet": "#ff7f0e"}
 METRIC_INFO = {          # label, "higher"/"lower" is better
@@ -32,7 +33,7 @@ def _finish(fig: Figure, save_path):
 def _layout(fig: Figure, title):
     """Tidy layout; reserve headroom so the figure title never overlaps panels."""
     if title:
-        fig.suptitle(title, fontsize=12)
+        fig.suptitle(title, fontsize=12, parse_math=False)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
     else:
         fig.tight_layout()
@@ -69,6 +70,10 @@ def _bar(ax, table: pd.DataFrame, metric: str):
     if metric == "processing_time" and len(values) > 1 and min(values) > 0 \
             and max(values) / min(values) > 20:
         ax.set_yscale("log")
+        # plain-text tick labels: the default log labels go through matplotlib's
+        # math-text parser, which is not thread-safe (Streamlit can overlap runs)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.yaxis.set_minor_formatter(NullFormatter())
         label += ", log scale"
     ax.set_ylabel(label)
     ax.set_title(f"{label.split(',')[0]}  ({better} is better)", fontsize=10)

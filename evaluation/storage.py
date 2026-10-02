@@ -16,6 +16,7 @@ crash can never leave a half-written (corrupted) result file behind.
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 import numpy as np
@@ -54,12 +55,25 @@ def effective_params(sigma=None, overrides=None) -> dict:
 
 
 # --- safe writing -------------------------------------------------------
+def _replace_with_retry(tmp: Path, path: Path, attempts: int = 8, delay: float = 0.25) -> None:
+    """os.replace, retried a few times. On Windows the target is briefly (or,
+    while open in Excel, persistently) locked, which raises PermissionError."""
+    for i in range(attempts):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if i == attempts - 1:
+                raise
+            time.sleep(delay * (i + 1))
+
+
 def _atomic(path: Path, writer) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     try:
         writer(tmp)
-        os.replace(tmp, path)
+        _replace_with_retry(tmp, path)
     finally:
         if tmp.exists():
             tmp.unlink()

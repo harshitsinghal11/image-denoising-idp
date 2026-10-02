@@ -1,6 +1,8 @@
 """Phase 6 checks. Run from the project root:  python -m tests.test_visualization"""
+import io
 import json
 import tempfile
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -106,6 +108,36 @@ def test_metric_vs_noise_and_errors():
             except ValueError:
                 continue
             raise AssertionError("expected ValueError")
+
+
+def _timing_table():
+    return pd.DataFrame({"method": ["noisy", "wavelet", "shearlet"], "mse": [376.2, 103.2, 64.3],
+                         "psnr": [22.4, 28.0, 30.0], "ssim": [0.38, 0.68, 0.79],
+                         "processing_time": [np.nan, 0.0038, 0.2]})   # ratio > 20 -> log axis
+
+
+def test_charts_survive_overlapping_threads():
+    """Streamlit can overlap script runs; matplotlib's math-text parser is not
+    thread-safe, so the charts must not use it (this crashed the app before)."""
+    errors = []
+
+    def work():
+        for _ in range(10):
+            try:
+                plot_all_metrics(_timing_table(), title="camera_gaussian_20_seed42") \
+                    .savefig(io.BytesIO(), format="png")
+            except Exception as exc:                      # noqa: BLE001
+                errors.append(repr(exc)[:120])
+
+    threads = [threading.Thread(target=work) for _ in range(4)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors, errors[:2]
+
+
+def test_dollar_signs_in_titles_are_plain_text():
+    # an uploaded file called "a$b$c.png" must not be parsed as math
+    plot_all_metrics(_timing_table(), title="a$b$c_gaussian_20_seed42").savefig(io.BytesIO(), format="png")
 
 
 if __name__ == "__main__":
